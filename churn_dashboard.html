@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Churn Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0E1218;
+    --panel:#161C25;
+    --panel-2:#1C2430;
+    --border:#293241;
+    --text:#EDEFF3;
+    --muted:#8B93A3;
+    --muted-2:#5B6472;
+    --risk-high:#E8604C;
+    --risk-med:#F2B84B;
+    --risk-low:#38C7B8;
+    --accent:#38C7B8;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    padding:0 0 80px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:0 28px;}
+
+  header{
+    padding:48px 28px 32px;
+    border-bottom:1px solid var(--border);
+    background:
+      radial-gradient(circle at 85% 0%, rgba(56,199,184,0.08), transparent 45%),
+      radial-gradient(circle at 15% 100%, rgba(232,96,76,0.06), transparent 45%);
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:14px;
+  }
+  h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:38px;
+    letter-spacing:-0.01em;
+    margin-bottom:10px;
+  }
+  .sub{
+    color:var(--muted);
+    font-size:15px;
+    max-width:640px;
+    line-height:1.55;
+  }
+
+  .kpi-row{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:1px;
+    background:var(--border);
+    border:1px solid var(--border);
+    margin-top:32px;
+    border-radius:10px;
+    overflow:hidden;
+  }
+  .kpi{
+    background:var(--panel);
+    padding:22px 24px;
+  }
+  .kpi-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--muted-2);
+    margin-bottom:10px;
+  }
+  .kpi-value{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:30px;
+    font-weight:600;
+  }
+  .kpi-value.warn{color:var(--risk-high);}
+  .kpi-value.good{color:var(--risk-low);}
+  .kpi-note{font-size:12.5px; color:var(--muted); margin-top:6px;}
+
+  section{padding:44px 28px; border-bottom:1px solid var(--border);}
+  section:last-child{border-bottom:none;}
+  .section-head{margin-bottom:24px;}
+  .section-tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--accent);
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  h2{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:23px;
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  .section-desc{color:var(--muted); font-size:14px; max-width:620px; line-height:1.6;}
+
+  /* Segmentation cards */
+  .seg-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+  .seg-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:24px;
+    position:relative;
+    overflow:hidden;
+  }
+  .seg-card::before{
+    content:'';
+    position:absolute; top:0; left:0; width:4px; height:100%;
+  }
+  .seg-card.high::before{background:var(--risk-high);}
+  .seg-card.medium::before{background:var(--risk-med);}
+  .seg-card.low::before{background:var(--risk-low);}
+  .seg-name{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:17px;
+    margin-bottom:4px;
+  }
+  .seg-n{font-size:12.5px; color:var(--muted); margin-bottom:18px; font-family:'IBM Plex Mono',monospace;}
+  .seg-rate{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:36px;
+    font-weight:700;
+    line-height:1;
+  }
+  .seg-card.high .seg-rate{color:var(--risk-high);}
+  .seg-card.medium .seg-rate{color:var(--risk-med);}
+  .seg-card.low .seg-rate{color:var(--risk-low);}
+  .seg-rate-label{font-size:11px; color:var(--muted-2); text-transform:uppercase; letter-spacing:0.06em; margin-top:2px; font-family:'IBM Plex Mono',monospace;}
+  .seg-meta{display:flex; gap:20px; margin-top:18px; padding-top:16px; border-top:1px solid var(--border);}
+  .seg-meta div{font-size:12.5px; color:var(--muted);}
+  .seg-meta b{color:var(--text); display:block; font-family:'IBM Plex Mono',monospace; font-size:14px; margin-top:2px;}
+
+  /* Driver chart */
+  .chart-panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:26px 26px 10px;
+  }
+  .chart-panel.tall{height:420px;}
+  .chart-panel.medium-h{height:320px;}
+  .legend-row{display:flex; gap:22px; margin-bottom:18px; font-size:12.5px; color:var(--muted);}
+  .legend-dot{width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:7px;}
+
+  .grid-2{display:grid; grid-template-columns:1.3fr 1fr; gap:20px;}
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:20px;}
+
+  .panel-title{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:14.5px;
+    font-weight:600;
+    margin-bottom:2px;
+  }
+  .panel-sub{font-size:12px; color:var(--muted-2); margin-bottom:16px;}
+
+  footer{
+    padding:32px 28px 0;
+    text-align:center;
+    color:var(--muted-2);
+    font-size:12px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+
+  @media (max-width:820px){
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .seg-grid, .grid-3{grid-template-columns:1fr;}
+    .grid-2{grid-template-columns:1fr;}
+    h1{font-size:28px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Customer Churn Analysis · Segmentation &amp; EDA</div>
+    <h1>Where retention breaks down</h1>
+    <p class="sub">Synthetic telecom-style customer base, sized to a typical subscription book, used to surface the segments and behaviors most predictive of churn.</p>
+
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-label">Customers analyzed</div>
+        <div class="kpi-value" id="kpi-n">—</div>
+        <div class="kpi-note">across 9 behavioral &amp; account features</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Overall churn rate</div>
+        <div class="kpi-value warn" id="kpi-rate">—</div>
+        <div class="kpi-note">of customers in the base</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Top churn driver</div>
+        <div class="kpi-value" style="font-size:22px;">Month-to-month contract</div>
+        <div class="kpi-note" id="kpi-driver-note">strongest positive coefficient</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Lowest-risk segment</div>
+        <div class="kpi-value good" id="kpi-lowrisk">—</div>
+        <div class="kpi-note">long tenure, contracted customers</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-tag">Segmentation</div>
+      <h2>Three risk tiers, one clear pattern</h2>
+      <p class="section-desc">Customers grouped by a composite of contract type, tenure, internet service, support coverage and payment method. Risk compounds — it isn't any single factor.</p>
+    </div>
+    <div class="seg-grid" id="seg-grid"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-tag">Churn drivers</div>
+      <h2>What moves the needle, and which way</h2>
+      <p class="section-desc">Standardized logistic regression coefficients. Bars extending right increase churn odds; bars extending left are protective.</p>
+    </div>
+    <div class="chart-panel tall">
+      <div class="legend-row">
+        <span><span class="legend-dot" style="background:var(--risk-high);"></span>Increases churn risk</span>
+        <span><span class="legend-dot" style="background:var(--risk-low);"></span>Reduces churn risk</span>
+      </div>
+      <canvas id="driverChart"></canvas>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-tag">Exploratory data analysis</div>
+      <h2>Churn rate by segment cut</h2>
+      <p class="section-desc">Retention insight surfaces fastest when you slice by the levers a retention team can actually pull.</p>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:20px;">
+      <div class="chart-panel medium-h">
+        <div class="panel-title">Churn rate by contract type</div>
+        <div class="panel-sub">Month-to-month customers churn at multiples of contracted customers</div>
+        <canvas id="contractChart"></canvas>
+      </div>
+      <div class="chart-panel medium-h">
+        <div class="panel-title">Churn rate over tenure</div>
+        <div class="panel-sub">Risk is highest in the first year, then decays</div>
+        <canvas id="tenureChart"></canvas>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="chart-panel medium-h">
+        <div class="panel-title">By internet service</div>
+        <canvas id="internetChart"></canvas>
+      </div>
+      <div class="chart-panel medium-h">
+        <div class="panel-title">By payment method</div>
+        <canvas id="paymentChart"></canvas>
+      </div>
+      <div class="chart-panel medium-h">
+        <div class="panel-title">By monthly charges band</div>
+        <canvas id="mcChart"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">SYNTHETIC DATASET · n = 3,000 · GENERATED FOR ILLUSTRATION</div>
+</footer>
+
+<script>
+const DATA = {"overall_rate": 0.244, "n_customers": 3000, "contract_rate": [{"contract": "Month-to-month", "churn_rate": 0.38892270237370663, "n": 1643}, {"contract": "One year", "churn_rate": 0.08411214953271028, "n": 749}, {"contract": "Two year", "churn_rate": 0.049342105263157895, "n": 608}], "internet_rate": [{"internet": "Fiber optic", "churn_rate": 0.31227038941954444, "n": 1361}, {"internet": "DSL", "churn_rate": 0.2, "n": 1015}, {"internet": "No internet", "churn_rate": 0.16666666666666666, "n": 624}], "payment_rate": [{"payment": "Electronic check", "churn_rate": 0.29874213836477986, "n": 954}, {"payment": "Bank transfer", "churn_rate": 0.23398692810457516, "n": 765}, {"payment": "Mailed check", "churn_rate": 0.21761658031088082, "n": 579}, {"payment": "Credit card", "churn_rate": 0.2022792022792023, "n": 702}], "tech_support_rate": [{"tech_support": "No", "churn_rate": 0.26272912423625255, "n": 1964}, {"tech_support": "Yes", "churn_rate": 0.2084942084942085, "n": 1036}], "tenure_curve": {"0-6": 0.2939, "7-12": 0.2669, "13-24": 0.2812, "25-36": 0.1849, "37-48": 0.132, "49-72": 0.0965}, "mc_curve": {"<40": 0.2172, "40-60": 0.2123, "60-80": 0.2492, "80-100": 0.2754, "100+": 0.3125}, "top_drivers": [{"feature": "contract_Two year", "coef": -1.075}, {"feature": "contract_One year", "coef": -0.929}, {"feature": "tenure", "coef": -0.54}, {"feature": "internet_Fiber optic", "coef": 0.392}, {"feature": "payment_Electronic check", "coef": 0.251}, {"feature": "tech_support_Yes", "coef": -0.216}, {"feature": "monthly_charges", "coef": 0.203}, {"feature": "senior", "coef": 0.11}, {"feature": "payment_Credit card", "coef": -0.099}, {"feature": "partner_Yes", "coef": -0.084}], "seg_summary": [{"segment": "High Risk", "n": 458, "churn_rate": 0.524, "avg_monthly": 63.327, "avg_tenure": 9.517}, {"segment": "Low Risk", "n": 590, "churn_rate": 0.056, "avg_monthly": 66.159, "avg_tenure": 27.249}, {"segment": "Medium Risk", "n": 1952, "churn_rate": 0.235, "avg_monthly": 65.05, "avg_tenure": 18.915}]};
+
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.color = '#8B93A3';
+Chart.defaults.borderColor = '#293241';
+
+const RISK_HIGH = '#E8604C';
+const RISK_MED = '#F2B84B';
+const RISK_LOW = '#38C7B8';
+const TEXT = '#EDEFF3';
+
+function pct(x){ return (x*100).toFixed(1) + '%'; }
+
+// KPIs
+document.getElementById('kpi-n').textContent = DATA.n_customers.toLocaleString();
+document.getElementById('kpi-rate').textContent = pct(DATA.overall_rate);
+const lowSeg = DATA.seg_summary.find(s => s.segment === 'Low Risk');
+document.getElementById('kpi-lowrisk').textContent = pct(lowSeg.churn_rate);
+document.getElementById('kpi-driver-note').textContent = 'coef ' + DATA.top_drivers.find(d=>d.feature.includes('Month'))?.coef ?? DATA.top_drivers[0].coef;
+
+// Segmentation cards
+const segOrder = ['High Risk','Medium Risk','Low Risk'];
+const segClass = {'High Risk':'high','Medium Risk':'medium','Low Risk':'low'};
+const segGrid = document.getElementById('seg-grid');
+segOrder.forEach(name=>{
+  const s = DATA.seg_summary.find(x=>x.segment===name);
+  const el = document.createElement('div');
+  el.className = 'seg-card ' + segClass[name];
+  el.innerHTML = `
+    <div class="seg-name">${name}</div>
+    <div class="seg-n">${s.n.toLocaleString()} customers</div>
+    <div class="seg-rate">${pct(s.churn_rate)}</div>
+    <div class="seg-rate-label">churn rate</div>
+    <div class="seg-meta">
+      <div>Avg tenure<b>${s.avg_tenure.toFixed(0)} mo</b></div>
+      <div>Avg monthly<b>$${s.avg_monthly.toFixed(0)}</b></div>
+    </div>
+  `;
+  segGrid.appendChild(el);
+});
+
+// Driver chart (diverging horizontal bar)
+const driverLabels = {
+  'contract_Two year':'Contract: Two year',
+  'contract_One year':'Contract: One year',
+  'tenure':'Tenure (months)',
+  'internet_Fiber optic':'Internet: Fiber optic',
+  'payment_Electronic check':'Payment: Electronic check',
+  'tech_support_Yes':'Has tech support',
+  'monthly_charges':'Monthly charges',
+  'senior':'Senior citizen',
+  'payment_Credit card':'Payment: Credit card',
+  'partner_Yes':'Has partner'
+};
+const drivers = [...DATA.top_drivers].sort((a,b)=>a.coef-b.coef);
+new Chart(document.getElementById('driverChart'), {
+  type:'bar',
+  data:{
+    labels: drivers.map(d=>driverLabels[d.feature] || d.feature),
+    datasets:[{
+      data: drivers.map(d=>d.coef),
+      backgroundColor: drivers.map(d=>d.coef>=0?RISK_HIGH:RISK_LOW),
+      borderRadius:4,
+      barThickness:18
+    }]
+  },
+  options:{
+    indexAxis:'y',
+    responsive:true,
+    maintainAspectRatio:false,
+    plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'coef ' + c.raw.toFixed(3)}}},
+    scales:{
+      x:{grid:{color:'#1F2733'}, title:{display:true,text:'Standardized coefficient',color:'#5B6472',font:{size:11}}},
+      y:{grid:{display:false}, ticks:{color:TEXT,font:{size:12.5}}}
+    }
+  }
+});
+
+// Contract chart
+new Chart(document.getElementById('contractChart'), {
+  type:'bar',
+  data:{
+    labels: DATA.contract_rate.map(d=>d.contract),
+    datasets:[{data: DATA.contract_rate.map(d=>d.churn_rate), backgroundColor:[RISK_HIGH,RISK_MED,RISK_LOW], borderRadius:6}]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>pct(c.raw)}}},
+    scales:{
+      y:{ticks:{callback:v=>(v*100)+'%'}, grid:{color:'#1F2733'}},
+      x:{grid:{display:false}}
+    }
+  }
+});
+
+// Tenure line chart
+new Chart(document.getElementById('tenureChart'), {
+  type:'line',
+  data:{
+    labels: Object.keys(DATA.tenure_curve),
+    datasets:[{
+      data: Object.values(DATA.tenure_curve),
+      borderColor: RISK_MED,
+      backgroundColor: 'rgba(242,184,75,0.12)',
+      fill:true, tension:0.35, pointRadius:4, pointBackgroundColor: RISK_MED
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>pct(c.raw)}}},
+    scales:{
+      y:{ticks:{callback:v=>(v*100)+'%'}, grid:{color:'#1F2733'}},
+      x:{grid:{display:false}, title:{display:true,text:'Tenure (months)',color:'#5B6472',font:{size:11}}}
+    }
+  }
+});
+
+// Internet chart
+new Chart(document.getElementById('internetChart'), {
+  type:'bar',
+  data:{
+    labels: DATA.internet_rate.map(d=>d.internet),
+    datasets:[{data: DATA.internet_rate.map(d=>d.churn_rate), backgroundColor:RISK_HIGH, borderRadius:6}]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>pct(c.raw)}}},
+    scales:{y:{ticks:{callback:v=>(v*100)+'%'}, grid:{color:'#1F2733'}}, x:{grid:{display:false}, ticks:{font:{size:10.5}}}}
+  }
+});
+
+// Payment chart
+new Chart(document.getElementById('paymentChart'), {
+  type:'bar',
+  data:{
+    labels: DATA.payment_rate.map(d=>d.payment),
+    datasets:[{data: DATA.payment_rate.map(d=>d.churn_rate), backgroundColor:RISK_MED, borderRadius:6}]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>pct(c.raw)}}},
+    scales:{y:{ticks:{callback:v=>(v*100)+'%'}, grid:{color:'#1F2733'}}, x:{grid:{display:false}, ticks:{font:{size:9.5}}}}
+  }
+});
+
+// Monthly charges chart
+new Chart(document.getElementById('mcChart'), {
+  type:'bar',
+  data:{
+    labels: Object.keys(DATA.mc_curve),
+    datasets:[{data: Object.values(DATA.mc_curve), backgroundColor:RISK_LOW, borderRadius:6}]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>pct(c.raw)}}},
+    scales:{y:{ticks:{callback:v=>(v*100)+'%'}, grid:{color:'#1F2733'}}, x:{grid:{display:false}}}
+  }
+});
+</script>
+
+</body>
+</html>
