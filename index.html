@@ -6,7 +6,6 @@
 <title>Customer Churn Analysis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#0E1218;
@@ -293,10 +292,6 @@
 <script>
 const DATA = {"overall_rate": 0.244, "n_customers": 3000, "contract_rate": [{"contract": "Month-to-month", "churn_rate": 0.38892270237370663, "n": 1643}, {"contract": "One year", "churn_rate": 0.08411214953271028, "n": 749}, {"contract": "Two year", "churn_rate": 0.049342105263157895, "n": 608}], "internet_rate": [{"internet": "Fiber optic", "churn_rate": 0.31227038941954444, "n": 1361}, {"internet": "DSL", "churn_rate": 0.2, "n": 1015}, {"internet": "No internet", "churn_rate": 0.16666666666666666, "n": 624}], "payment_rate": [{"payment": "Electronic check", "churn_rate": 0.29874213836477986, "n": 954}, {"payment": "Bank transfer", "churn_rate": 0.23398692810457516, "n": 765}, {"payment": "Mailed check", "churn_rate": 0.21761658031088082, "n": 579}, {"payment": "Credit card", "churn_rate": 0.2022792022792023, "n": 702}], "tech_support_rate": [{"tech_support": "No", "churn_rate": 0.26272912423625255, "n": 1964}, {"tech_support": "Yes", "churn_rate": 0.2084942084942085, "n": 1036}], "tenure_curve": {"0-6": 0.2939, "7-12": 0.2669, "13-24": 0.2812, "25-36": 0.1849, "37-48": 0.132, "49-72": 0.0965}, "mc_curve": {"<40": 0.2172, "40-60": 0.2123, "60-80": 0.2492, "80-100": 0.2754, "100+": 0.3125}, "top_drivers": [{"feature": "contract_Two year", "coef": -1.075}, {"feature": "contract_One year", "coef": -0.929}, {"feature": "tenure", "coef": -0.54}, {"feature": "internet_Fiber optic", "coef": 0.392}, {"feature": "payment_Electronic check", "coef": 0.251}, {"feature": "tech_support_Yes", "coef": -0.216}, {"feature": "monthly_charges", "coef": 0.203}, {"feature": "senior", "coef": 0.11}, {"feature": "payment_Credit card", "coef": -0.099}, {"feature": "partner_Yes", "coef": -0.084}], "seg_summary": [{"segment": "High Risk", "n": 458, "churn_rate": 0.524, "avg_monthly": 63.327, "avg_tenure": 9.517}, {"segment": "Low Risk", "n": 590, "churn_rate": 0.056, "avg_monthly": 66.159, "avg_tenure": 27.249}, {"segment": "Medium Risk", "n": 1952, "churn_rate": 0.235, "avg_monthly": 65.05, "avg_tenure": 18.915}]};
 
-Chart.defaults.font.family = "'Inter', sans-serif";
-Chart.defaults.color = '#8B93A3';
-Chart.defaults.borderColor = '#293241';
-
 const RISK_HIGH = '#E8604C';
 const RISK_MED = '#F2B84B';
 const RISK_LOW = '#38C7B8';
@@ -331,6 +326,11 @@ segOrder.forEach(name=>{
   `;
   segGrid.appendChild(el);
 });
+
+function renderCharts(){
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.color = '#8B93A3';
+Chart.defaults.borderColor = '#293241';
 
 // Driver chart (diverging horizontal bar)
 const driverLabels = {
@@ -447,6 +447,53 @@ new Chart(document.getElementById('mcChart'), {
     responsive:true, maintainAspectRatio:false,
     plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>pct(c.raw)}}},
     scales:{y:{ticks:{callback:v=>(v*100)+'%'}, grid:{color:'#1F2733'}}, x:{grid:{display:false}}}
+  }
+});
+} // end renderCharts
+
+// Load Chart.js with fallback across multiple CDNs so the page still works
+// if any single CDN is blocked or slow on the viewer's network.
+const CDN_SOURCES = [
+  'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js',
+  'https://unpkg.com/chart.js@4.4.4/dist/chart.umd.min.js'
+];
+
+function loadScript(src){
+  return new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('failed: ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+function showChartFallback(){
+  document.querySelectorAll('canvas').forEach(c=>{
+    const msg = document.createElement('div');
+    msg.style.cssText = 'color:#5B6472;font-size:13px;padding:20px 0;text-align:center;';
+    msg.textContent = 'Chart library could not load — check your connection and refresh.';
+    c.replaceWith(msg);
+  });
+}
+
+async function loadChartJs(){
+  for (const src of CDN_SOURCES){
+    try{
+      await loadScript(src);
+      if (typeof Chart !== 'undefined') return true;
+    }catch(e){ /* try next source */ }
+  }
+  return false;
+}
+
+loadChartJs().then(ok=>{
+  if (ok) {
+    try { renderCharts(); }
+    catch(e){ console.error(e); showChartFallback(); }
+  } else {
+    showChartFallback();
   }
 });
 </script>
